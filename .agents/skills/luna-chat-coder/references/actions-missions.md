@@ -25,6 +25,7 @@ Before dispatch, define the smallest sufficient mission:
 - **outputs**: artifact, logs, checksum, generated input, test result, commit, or other durable result expected back;
 - **integrity**: checksums and provenance when bytes cross the sandbox/runner boundary;
 - **permissions**: minimum workflow and repository permissions required;
+- **trust boundary**: which mission inputs are untrusted and whether the mission has secrets or a privileged token; do not execute untrusted code with those privileges;
 - **terminal state**: what makes the mission complete and what temporary state can eventually be removed.
 
 If the expected source SHA no longer matches, stop that mission path and deliberately recover/rebase rather than applying an exact payload to the wrong source.
@@ -59,7 +60,7 @@ Transport is bidirectional. It may bring exact repository source into the sandbo
 
 Prefer a byte-preserving transport when exact bytes already exist and reconstructing them through model-authored per-file/blob content would add meaningful serialization, partial-update, or round-trip risk. Small intentional textual edits can still use direct file operations when that is simpler and sufficiently reliable. Avoid rigid file-count thresholds; choose based on payload fidelity, semantics, and observed integration behavior.
 
-Treat the workflow definition as control-plane text, not as the transport payload. Do not embed a substantial source tree, patch, archive, or generated replacement content inside model-authored workflow YAML, shell heredocs, command literals, or large textual workflow inputs and then describe that path as byte-preserving transport. Prefer the mission to retrieve an already-existing exact artifact/archive/patch/bundle/commit or a host-provided file reference, and verify its checksum before use. If the host can transfer a sandbox file to the mission byte-for-byte, use that capability; if it cannot, choose another reliable exact path rather than disguising model reserialization as an Actions transport.
+Treat the workflow definition as control-plane text, not as the transport payload. Do not embed a substantial source tree, patch, archive, or generated replacement content inside model-authored workflow YAML, shell heredocs, command literals, or large textual workflow inputs and then describe that path as byte-preserving transport. Prefer the mission to retrieve an already-existing exact artifact/archive/patch/bundle/commit or a host-provided file reference, and verify its checksum before use. If the host can transfer a sandbox file to the mission byte-for-byte, use that capability; if it cannot, use another exact path or the verified textual-patch fallback below.
 
 Do not assume artifacts form a symmetric sandbox↔runner channel. A workflow can produce an artifact for later download, but sending an existing sandbox payload into a mission requires an actual host-provided file-transfer path, prior durable Git/Actions state, or another exact mechanism. Discover that capability instead of inventing it.
 
@@ -103,6 +104,18 @@ sha256sum change.patch
 ```
 
 The staged/index state above is only a way to materialize the explicit result tree; unrelated ambient staged, unstaged, or untracked state is not part of the transport contract. Preserve the expected `result_tree` identity with the payload. A result commit may be used instead when that is the simpler durable state.
+
+### Textual patch fallback when no byte-preserving upload exists
+
+If an exact `change.patch` already exists in the sandbox but the host has no practical sandbox-to-remote file upload, the patch may cross a model/tool-mediated text channel when exactness is verified end to end rather than assumed from the channel.
+
+1. Record the patch checksum, expected base SHA, and expected result tree before transport.
+2. Store the patch as task-owned data, separate from workflow YAML or executable command text. Deterministic chunks are acceptable when one-call limits require them.
+3. Verify the stored/reassembled patch bytes against the sandbox checksum before execution.
+4. From the expected clean base, run `git apply --check --index`, apply it, and verify `git write-tree` equals the expected result tree.
+5. Publish the clean result tree and remove the temporary patch/chunks/workflow from the final source tree.
+
+A checksum mismatch is a transport failure; do not repair it with ad-hoc string edits. After a complete-file serialization mismatch, prefer a previously verified patch with this contract over repeatedly re-emitting the same large files.
 
 Bind the payload to the expected base SHA and result tree. From a clean checkout of the expected base, the remote side should:
 
@@ -205,10 +218,15 @@ If the connected integration can verify ownership and terminal state but cannot 
 
 Cleanup should be idempotent: an object that is already absent is already clean.
 
-## Security
+## Security for Luna-created missions
 
-- Keep credentials, signing material, and unrelated runner state out of artifacts.
-- Use minimum workflow permissions.
+Luna is responsible for the workflow definitions, payloads, artifacts, logs, and other remote state it creates or modifies for a mission. It should behave as though that temporary state may later be visible more broadly, rather than relying on the repository's current visibility. This is a boundary on Luna's own behavior, not a replacement for the project's security policy.
+
+- Do not place secret values in Luna-authored workflow text, mission payloads, logs, artifacts, caches, patches, bundles, or other Luna-created durable output.
+- If a Luna mission genuinely needs a credential, use the host's approved secret mechanism with the smallest practical scope and workflow permissions.
+- Do not execute untrusted code or artifacts in a Luna-created job that has secrets or a write-capable token.
+- Treat attacker-controlled issue/PR text, refs, labels, commit metadata, and workflow inputs as data in Luna-authored privileged jobs; do not interpolate them directly into executable shell or generated code.
 - Verify the provenance of downloaded executables and native inputs; an Actions artifact is transport, not automatic trust.
-- Keep large caches, SDKs, and toolchains out of normal source history unless the repository explicitly adopts them there.
 - Do not expose or weaken the user's host computer to avoid using a mission.
+
+If Luna has reason to believe a credential it handled was exposed, stop using it for the mission and report the exposure. Do not attempt broader project credential remediation unless the user or project instructions authorize it.
