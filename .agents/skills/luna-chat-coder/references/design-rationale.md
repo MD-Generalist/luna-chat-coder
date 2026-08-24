@@ -1,28 +1,28 @@
 # Luna Chat Coder Design Rationale
 
-This document is durable maintainer memory for Luna Chat Coder. It is intentionally stored inside the skill directory so that the reasoning survives repository-template copies, history resets, repository migration, and replacement of top-level README or AGENTS files.
+This document is durable maintainer memory for Luna Chat Coder. It lives inside the skill directory so the reasoning survives template copies, repository migration, history resets, and replacement of top-level documentation.
 
-It is **not runtime policy**. Normal repository-development tasks should follow `../SKILL.md` and read the operational references only when needed. Read this document when modifying, reviewing, simplifying, porting, or redesigning Luna itself.
+It is **not runtime policy**. Normal repository work follows `../SKILL.md` and reads operational references only when needed. Read this document when modifying, reviewing, simplifying, porting, or redesigning Luna itself.
 
-If this rationale and the current skill disagree, investigate and deliberately reconcile them. Do not let historical explanation silently override current executable policy.
+If this rationale and the current skill disagree, investigate and reconcile them deliberately. Historical explanation must not silently override current runtime policy.
 
 ## 1. Problem statement
 
 Ordinary web chat can be a useful software-development surface, but its execution environment and continuity properties differ from a persistent developer workstation.
 
-The recurring problems Luna is intended to handle are:
+Luna exists because several failures recur in that environment:
 
-- the chat sandbox may be disposable, reset, replaced, resource-limited, duration-limited, or temporarily unavailable;
-- the sandbox may have useful runtimes and tools already installed, but may lack a repository-specific dependency, SDK, compiler, service, browser, native library, generated input, or external network access;
-- the user’s own computer is normally outside the web chat execution boundary and should not become a required escape hatch;
-- exact repository source cannot safely be reconstructed from conversational prose after context loss;
-- connected GitHub APIs can be efficient for some writes but awkward, limited, or occasionally unreliable for large or complex changes;
-- GitHub Actions can supply networked execution and durable outputs, but remote runs, artifacts, workflows, storage, and cleanup have latency, quota, management, and sometimes monetary cost;
-- several chats, AI agents, CI jobs, or humans may work on the same repository concurrently;
-- chat history, repository history, or the original template repository may later disappear, so critical design intent must not exist only in conversation or commit archaeology;
-- models sometimes react badly to failed Actions runs: guessing from a red status, changing unrelated source without reading logs, or blindly re-running the same failing workflow.
+- the chat sandbox may reset, disappear, hit resource limits, or lack direct network access;
+- repository-required dependencies, runtimes, services, browsers, compilers, or generated inputs may not initially be available;
+- the user's own computer should not become a required escape hatch;
+- exact source cannot safely be reconstructed from conversational prose after context loss;
+- connected GitHub operations are useful but can be awkward or unreliable for some payloads;
+- GitHub Actions can provide networked execution and durable transport, but adds latency, quota, lifecycle, and sometimes monetary cost;
+- multiple chats, agents, CI jobs, or humans may change remote state concurrently;
+- Luna-created temporary workflows, payloads, logs, and artifacts may outlive the moment that created them, so their safety must not depend on a repository remaining private;
+- models sometimes react badly to failed remote operations by guessing, editing unrelated source, or blindly retrying.
 
-Luna exists to make this constrained environment reliable without replacing ordinary chat with another autonomous coding system.
+Luna's job is to make these constraints manageable without turning ordinary chat into another autonomous coding system or making the user operate extra infrastructure.
 
 ## 2. North star
 
@@ -42,58 +42,52 @@ GitHub Actions mission
     bounded remote capability, transport, or execution when the normal path is insufficient
 ```
 
-The user should normally experience this as “give the chat a repository and a development task.” Luna should be almost invisible on the healthy path.
+The normal user experience should still be: **give the chat a repository and a development task**.
 
 The design principle is:
 
 > **Discover early, activate late.**
 
-The model should know Luna exists before repository work begins, but loading Luna must not itself trigger Actions, remote state, or extra ceremony.
+The model should know Luna exists before repository work begins, but loading Luna must not itself trigger Actions, remote state, or visible ceremony.
 
 ## 3. What Luna is and is not
 
-Luna is a **continuity, capability-fallback, exact-transport, and evidence policy** embedded in a repository template.
+Luna is a continuity, capability-fallback, exact-transport, and evidence policy embedded in a repository template.
 
 It is not:
 
 - a separate autonomous coding agent;
-- a new application architecture or engineering methodology;
-- a framework that chooses the project’s database, test framework, runtime, browser tooling, or compiler;
+- a framework that chooses a project's architecture, database, runtime, compiler, browser stack, or test framework;
 - a reason to move ordinary coding into GitHub Actions;
-- a promise that every Agent Skills host has the same GitHub capabilities;
-- a mechanism that depends on direct access to the user’s computer;
-- a substitute for project-specific engineering instructions.
+- a promise that every Agent Skills host exposes the same capabilities;
+- a mechanism that depends on direct access to the user's computer;
+- a replacement for project-specific engineering or security instructions.
 
-The repository itself defines what technologies and verification are required. Luna only helps the current chat environment satisfy those requirements faithfully.
+The repository defines the engineering method. Luna helps the current chat environment carry it out faithfully.
+
+This boundary matters when Luna itself is being developed inside a repository that also uses Luna. Maintainers must distinguish **rules Luna needs for its own behavior** from **opinions about how the surrounding project should be run**. The former belongs here; the latter belongs in project instructions unless it is strictly necessary for Luna to operate safely.
 
 ## 4. Why the sandbox is primary
 
 The sandbox work container should be treated as a disposable development workstation, not merely a temporary text editor.
 
-Reasons to prefer it:
+It is already attached to the conversation, gives the model direct access to the working tree and command output, and supports a natural edit/build/test/debug loop. Using it also avoids unnecessary Actions startup, transport, workflow, artifact, and cleanup overhead.
 
-- it is already attached to the conversation;
-- it avoids remote-run startup and transport round trips;
-- the model can inspect the exact working tree and command output directly;
-- useful runtimes and tools may already exist, so inventory can be cheaper than reacquisition;
-- iterative edit/build/test/debug loops are much more natural in a local execution context than across one-shot remote jobs;
-- using an already-available sandbox avoids unnecessary Actions minutes, artifacts, workflows, storage, cleanup, and possible cost.
+The policy therefore says **inventory before acquiring**. This does not assume that any particular runtime or tool is preinstalled; it means inspect what is already available before downloading, installing, or dispatching a remote mission.
 
-The policy therefore says **inventory before acquiring**. This is not a guarantee that any particular tool is preinstalled. It is a rule to inspect what exists before downloading, installing, or dispatching a remote mission.
+## 5. Why the user's host computer is outside the model
 
-## 5. Why the user’s host computer is outside the model
+A user's own computer may be a capable development environment, but ordinary web chat should not require access to it.
 
-The user’s local computer may contain the best development environment, but an ordinary web chat generally should not assume direct host access.
+Making host access a dependency would weaken portability and recreate the tunnel/local-agent setup that Luna is specifically trying to avoid. Luna instead composes the chat sandbox, GitHub durable state, and bounded remote execution.
 
-Making host access a dependency would weaken portability and can create pressure to reduce isolation merely to unblock development. Luna instead tries to compose capabilities from the sandbox, GitHub durable state, and bounded remote execution.
-
-This is a design boundary, not a claim that every future product surface can never access a user-controlled machine.
+This is a design boundary, not a claim about every possible future product surface.
 
 ## 6. GitHub as durable truth
 
-Conversation is good for intent, decisions, and explanation. It is not the authoritative source of exact repository bytes.
+Conversation is useful for intent and explanation. It is not authoritative for exact repository bytes.
 
-The recovery order is deliberately:
+Recovery therefore prefers:
 
 ```text
 commit / PR head
@@ -102,389 +96,332 @@ commit / PR head
     > conversation reconstruction
 ```
 
-Branch and tag names are coordination names, not immutable identity. Important publication and transport operations should bind to a resolved commit SHA.
+Branch and tag names are coordination names, not immutable identity. Consequential transport, publication, and cleanup should bind to resolved commits or equivalent immutable identity.
 
-Observed repository facts must remain distinct from material assumptions. If source, history, documentation, and conversation disagree, investigate rather than silently choosing whichever is convenient.
+Observed repository facts must remain distinct from assumptions. When source, documentation, history, and conversation disagree, investigate rather than choosing whichever is convenient.
 
-## 7. Concurrency is normal, not exceptional
+## 7. Concurrency is normal
 
-Luna assumes that another actor may change remote state at any time:
+Another actor may change repository state at any time: another chat, another agent, CI, a human, or organization automation.
 
-- another web chat may work on the repository;
-- another AI coding agent may create or update a branch;
-- CI may create runs, artifacts, or generated state;
-- a human may push, rebase, merge, rename, delete, or create branches and workflows;
-- organization automation may alter permissions, retention, or branch state.
+Therefore Luna:
 
-Therefore:
+- resolves mutable names before consequential writes or cleanup;
+- does not infer ownership from branch names, age, or ancestry alone;
+- preserves unfamiliar state until ownership is understood;
+- uses task-owned namespaces when independent work can overlap;
+- uses commit SHAs and payload checksums for identity while names coordinate ownership.
 
-- resolve mutable names to current immutable identity before consequential writes, patch application, publication, or cleanup;
-- do not assume a branch is “ours” because its name looks familiar;
-- do not infer ownership from age or ancestry alone;
-- preserve unfamiliar state until ownership is understood;
-- use task-owned branch/ref/artifact namespaces when independent work can overlap;
-- use immutable SHAs and payload checksums for identity, while names only coordinate ownership.
+This is core policy because preventing a collision is cheaper than recovering from one.
 
-This concurrency rule belongs in core policy, not only in recovery documentation, because it should prevent conflicts before they happen.
+## 8. Why Actions is modeled as a mission
 
-## 8. Why Actions is modeled as a mission, not a bridge
+Earlier terminology described GitHub Actions as a “bridge.” That suggested an always-on connection and encouraged too many overlapping sub-concepts.
 
-Earlier terminology described GitHub Actions as a “bridge.” That metaphor suggested an always-available, bidirectional connection and encouraged conceptual sprawl: source bridge, capability bridge, build-input bridge, and similar terms.
-
-The intended behavior is closer to an unmanned probe:
+The intended model is closer to a bounded probe:
 
 1. give it exact source identity and bounded inputs;
 2. define a narrow purpose;
-3. let it execute independently;
-4. inspect logs, checks, artifacts, commits, or other durable results after it terminates;
-5. clean up task-owned temporary state after its value ends.
+3. let it run independently;
+4. inspect durable results after it terminates;
+5. remove task-owned temporary state after its value ends.
 
-The canonical term is therefore **Actions mission**.
+The canonical term is **Actions mission**.
 
-Mission roles may include supply, exact transport, degraded remote execution, and occasional task-owned remote control such as cleanup, but these are roles of the same mechanism rather than a rigid taxonomy. Transport is intentionally bidirectional: a mission may bring exact source or required bytes into the sandbox, or carry verified bytes back to durable GitHub state, without moving the engineering loop itself out of the sandbox. Commands used inside supply or transport missions to acquire/build/package a payload, apply it, or verify its integrity/output are mission mechanics rather than degraded remote mode so long as Actions is not substituting for the sandbox repository engineering loop.
+Supply, transport, degraded execution, and occasional cleanup/control are roles of the same mechanism, not a rigid taxonomy. The important boundary is whether Actions is servicing a sandbox-owned engineering loop or replacing it.
+
+### Luna owns the state it creates
+
+A previous draft generalized mission security into repository-wide security advice. That is outside Luna's role. A project may have its own security model, deployment rules, secret-handling conventions, and trusted workflows; Luna should not overwrite those policies merely because it is present.
+
+Luna is responsible for **Luna-created or Luna-modified mission machinery and temporary state**: temporary workflow definitions, transport payloads, artifacts, logs, caches, and the credentials or permissions it chooses to request. Intended project output remains governed by project policy. Luna's own temporary state must be safe even if repository visibility later changes: do not embed secret values in it, use minimum permissions, and do not execute untrusted code with Luna-provided privileged credentials.
+
+The durable rule is scope, not paternalism: Luna manages its own side effects well and leaves project-owned policy to the project.
 
 ## 9. Supply missions
 
-A supply mission is appropriate when the sandbox can perform the engineering work but cannot obtain a required external input.
+A supply mission is appropriate when the sandbox can do the engineering work but cannot obtain a required external input.
 
-Examples include a dependency/package cache, runtime, SDK, compiler, executable or application distribution, installer, native library, browser payload, generated data, vendor tree/archive, or other repository-required input.
+Examples include a dependency/package cache, runtime, SDK, compiler, executable distribution, installer, native library, browser payload, generated data, or vendor archive.
 
-Important properties:
+The mission should acquire only what the task requires, derive versions from repository declarations when possible, account for target OS/architecture/ABI when native compatibility matters, record provenance, checksum the returned payload, and return the normal engineering loop to the sandbox.
 
-- acquire only what the task requires;
-- derive versions and requirements from repository declarations where possible;
-- identify the sandbox target platform/ABI when native compatibility matters;
-- record provenance, repository SHA, sandbox target, runner platform/architecture, relevant tool versions, and production commands;
-- checksum the returned payload;
-- treat runner-native or compiled outputs as platform-specific unless compatibility with the sandbox target is established;
-- allow project-appropriate caches, package sets, vendor trees, portable install trees, or installers to be materialized and consumed offline in the sandbox without implying they belong in source control, while preserving required filesystem semantics inside the transported payload rather than trusting an outer artifact container to do so;
-- return to the sandbox for the normal engineering loop after supply.
+Runner-native output is not automatically compatible with the sandbox. Filesystem-sensitive payloads should preserve executable bits, symlinks, and other required semantics inside an appropriate inner archive or equivalent format rather than trusting an artifact wrapper to preserve them.
 
 Luna should not turn this into a general-purpose environment-management methodology.
 
-## 10. Exact transport is a first-class, bidirectional option
+## 10. Exact transport is a first-class option
 
-Transport must not be treated only as publication or as a punishment used after every connected GitHub mechanism has failed. A sandbox that cannot reach GitHub directly may still be perfectly capable of editing, building, testing, and debugging once exact source arrives. When repository size or payload shape makes per-file reconstruction materially riskier or more expensive, a bounded mission that exports an exact checkout, archive, Git bundle, or equivalent artifact can therefore be the correct source-acquisition path while leaving the engineering loop in the sandbox.
+Transport is bidirectional. A sandbox that cannot reach GitHub directly may still be perfectly capable of editing, building, testing, and debugging once exact source arrives. Likewise, a verified sandbox change may be safer to publish as one exact payload than as many independent content writes.
 
-The same principle applies in the other direction after verification. Connected file operations, native Git object operations, archives/artifacts, patches, and bundles are alternative transports. The correct choice depends on the observed payload and integration, not on a fixed hierarchy.
+Connected file operations, native Git objects, archives, artifacts, patches, and bundles are alternatives. The correct choice depends on payload semantics, integration limits, round trips, and observed reliability rather than a rigid hierarchy or file-count threshold.
 
-A byte-preserving transport is especially attractive when exact bytes already exist and model-mediated serialization adds no semantic value. Re-emitting a large source tree or verified multi-file change through model-authored complete-file/blob content creates extra opportunities for byte drift, partial updates, and round trips. Small intentional textual edits are different: direct file operations can remain the simplest reliable path. Luna should not encode a rigid file-count threshold because payload semantics, connector capabilities, and future model/tool fidelity can change.
+When exact bytes already exist, unnecessary model-mediated reconstruction adds serialization and partial-update risk without adding useful reasoning. Small intentional textual edits are different and may still be simplest as direct file writes.
 
-The mission definition and the transported bytes are different layers. Putting a substantial patch or source payload into model-authored workflow YAML, heredocs, command literals, or large textual workflow inputs does not become more exact merely because Actions executes it. The fidelity benefit comes from carrying an already-existing exact file/object/artifact reference byte-for-byte and verifying identity at the receiving side. Artifact transport is not assumed to be symmetric: a workflow-produced artifact can be downloaded later, while sandbox-to-runner transfer requires an actual host capability or prior durable state. When that channel does not exist in a given direction, Luna should choose another exact mechanism rather than using the workflow as a text-shaped disguise for model serialization. An artifact wrapper is also not itself a fidelity guarantee: complete source or other filesystem-sensitive payloads should use an inner archive, Git bundle, or equivalent format that preserves hidden paths and required mode/symlink/case semantics, with the inner payload checksummed.
+Workflow text is control-plane text, not automatically an exact payload channel. Putting a large patch or source tree inside model-authored YAML, heredocs, or command strings does not make it byte-preserving merely because Actions executes it. Prefer an existing exact object/file/artifact reference when the host can carry it directly.
 
-Git patches are a particularly useful example, but the exact boundary is explicit Git object state rather than an ambient working tree. First materialize and verify the intended result as a Git tree or commit, then generate a binary patch between the expected base tree and that result tree with text conversion/external diff helpers disabled. This makes staged-versus-unstaged state irrelevant to the transport itself, includes intended new files once they are deliberately represented in the result tree, and permits the receiving side to verify that patch application recreates the expected result tree. A bare no-argument `git diff --binary` is therefore not the canonical exact-transport recipe. Archives remain natural for complete source snapshots and supply payloads. A partial archive overlay is more situational because deletes, renames, modes, symlinks, and safe path replacement need an explicit contract; it should not displace patch/bundle merely for convenience.
+### Verified textual patch fallback
 
-A deterministic archive, patch, or bundle may be better when:
+The publication work that produced version `0.1.3` exposed an important correction. The sandbox had an exact Git patch, but there was no practical sandbox-to-GitHub file upload. Large complete-file serialization through repository APIs produced blob mismatches. The initial response was too absolute: it treated “not inherently byte-preserving” as if it also meant “cannot be made exact.”
 
-- direct Git/network access is unavailable but the sandbox can otherwise do the work;
-- many files or a large exact payload make repeated complete-file operations inefficient or fragile;
-- binary changes, renames, executable bits, mode changes, or Git object/history semantics matter;
-- the connector has payload or operation limits;
-- API errors persist after the returned errors have been inspected;
-- one checksummed payload makes recovery or handoff materially simpler.
+Those are different properties. A textual Git patch can cross a model/tool-mediated storage channel when exactness is established end to end:
 
-Conversely, a small textual change should not incur a remote mission merely because exact transport exists.
+- record the expected base SHA, patch checksum, and expected result tree in the sandbox;
+- store the patch as data, separately from executable workflow text;
+- verify the stored or reassembled remote bytes against the checksum;
+- apply from the expected clean base with `git apply --check --index` and `git apply --index`;
+- verify `git write-tree` reproduces the expected result tree;
+- publish the clean result tree without transport chunks or temporary workflow files.
 
-The choice should minimize overhead while preserving exactness and reliability. For transported payloads, source/base identity, checksums, post-transfer identity checks, and repository-defined verification are important integrity boundaries.
+This is not a claim that the text channel is byte-preserving. It is an exact transport because corruption becomes observable at both the payload and result-tree boundaries. When complete-file publication has already drifted and an exact patch exists, this verified fallback is preferable to repeatedly re-emitting the same large files.
 
-## 11. Mission results must be verified; failures must be diagnosed
+The detailed procedure belongs in `actions-missions.md`.
 
-A mission's reported conclusion is not the whole result. Even a green run can produce the wrong artifact, commit, ref, checksum, source identity, or cleanup effect if the mission contract or workflow is defective. Luna therefore verifies the outputs that matter before consuming a mission result or making the next consequential decision.
+## 11. Mission results must be verified
 
-A separate repeated failure mode in web-chat development is reacting to a failed remote operation without examining evidence.
+A mission's status is not its whole result. A green run can still produce the wrong artifact, commit, ref, checksum, source identity, or cleanup effect.
 
-Bad patterns include:
+Luna therefore checks the outputs that matter before relying on a successful mission. Failed missions require diagnosis before retry or source modification.
 
-- editing application source just because a workflow is red;
-- assuming a dependency or code defect without reading logs;
-- re-running an unchanged workflow repeatedly;
-- losing useful partial artifacts or commits before inspecting them;
-- treating permission, quota, stale SHA, workflow syntax, and product-test failures as the same class of problem.
+When possible, distinguish repository/test failure, mission/workflow defect, permission/authentication failure, quota/platform limits, stale source identity, and transient runner/service failure. Do not edit application source merely because a workflow is red, and do not repeat unchanged runs without evidence that a transient retry is justified.
 
-Luna therefore requires output-contract verification for successful missions and diagnosis before retry or source modification for failed missions.
-
-When possible, distinguish:
-
-- repository/application/test failure;
-- mission/workflow defect;
-- permission or authentication failure;
-- quota, storage, usage, duration, or platform limit;
-- stale source identity/base drift;
-- transient runner or service failure.
-
-An unchanged retry is reasonable only when evidence supports a transient or flaky failure. Without new evidence, one unchanged retry is the default ceiling; another identical failure should change the diagnosis or path rather than create an infinite loop.
-
-If logs are unavailable, say so and preserve uncertainty.
+If logs are unavailable, preserve that uncertainty.
 
 ## 12. Degraded remote mode
 
-If the sandbox itself is unavailable or cannot sustain the required repository engineering loop because of a hard platform constraint, Luna may temporarily continue that loop through bounded Actions missions. Supply/transport missions may still execute their own bounded acquisition, packaging, application, and output-verification mechanics while the sandbox is healthy; degraded mode begins when Actions substitutes for the sandbox engineering loop rather than merely servicing it. Missing direct GitHub network access, missing downloadable bytes, or an initially absent runtime/tool is not by itself evidence that the sandbox cannot sustain engineering work; when practical, transport or supply should first restore the sandbox path.
+Degraded remote mode begins only when Actions substitutes for the sandbox repository engineering loop because the sandbox itself is unavailable or cannot faithfully sustain the work after practical inputs/capabilities have been supplied.
 
-This is called **degraded remote mode** rather than “moving development to Actions.” The distinction matters:
+Missing direct GitHub access, missing downloadable bytes, or an initially absent tool is not enough by itself. Supply or transport should restore the sandbox path when practical.
 
-- a runner is ephemeral and non-interactive from chat’s perspective;
-- work should be split into bounded edit/build/test/verification steps;
-- reusable progress should be persisted in commits, task branches, exact patches/bundles, or immutable artifacts;
-- logs/results should be inspected before deciding the next mission;
-- the assistant should tell the user that sandbox execution was unavailable or insufficient and that remote execution was used;
-- if the sandbox becomes usable again, returning to it is preferred when practical.
-
-The user-visible notice matters because the verification environment changed.
+In degraded mode, split work into bounded missions, persist reusable progress in exact durable state, inspect results before the next mission, tell the user that the execution environment changed, and return to the sandbox when it becomes usable again and doing so is practical.
 
 ## 13. Durable handoff and context loss
 
-Chat, sandbox, or conversational context can disappear unexpectedly. Important state must therefore survive independently of conversation memory.
+Chat or sandbox context can disappear unexpectedly. State should become durable when losing it would make recovery expensive or ambiguous.
 
-Persist state when losing it would make recovery expensive or ambiguous. Appropriate durable carriers include:
+Suitable carriers include:
 
 ```text
 branch / PR / issue / commit / task-owned artifact
 ```
 
-Cheap reasoning and easily reconstructed intermediate notes can remain in chat.
+Cheap reasoning may remain in chat. A failed attempt that leaves useful logs, diagnosis, an exact payload, or a reusable commit can still be valuable; an attempt that leaves nothing reusable can be abandoned and restarted from the last known durable base.
 
-A failed attempt that leaves a useful diagnosis, exact payload, environment artifact, commit, or logs may still be worth preserving. A failed attempt with nothing reusable can be cleaned up and restarted from the last known durable base.
+## 14. Remote-state growth must be bounded
 
-## 14. Remote-state growth must be actively bounded
+Branches, workflows, runs, and artifacts have operational and sometimes monetary cost. They can also make ownership and recovery harder to understand.
 
-Cleanup is not only aesthetic. Unbounded branches, workflows, runs, and artifacts can:
+Before creating more state, reuse task-owned state when safe, avoid duplicate artifacts, prefer the smallest mission/output that satisfies the task, use bounded retention, and stop creating more temporary objects when growth or ownership becomes surprising.
 
-- make the repository difficult for humans to understand;
-- obscure ownership and active work;
-- consume Actions artifact storage or retention quota;
-- increase management and recovery complexity;
-- in some GitHub plans or configurations, contribute to billable usage or storage.
+After value ends, remove Luna-owned temporary branches/refs, workflow definitions, mission-only files, and obsolete artifacts when ownership and terminal state are clear. Do not delete the only useful recovery payload or unfamiliar state. Cleanup should be idempotent and recovery-aware.
 
-The design therefore has two layers of control.
+When direct integration can establish ownership but cannot perform cleanup, a small bounded cleanup mission with exact identity checks is acceptable. That is remote control, not degraded development.
 
-### Before creation
+## 15. Task-owned naming
 
-- reuse a task branch when the same durable task state can safely continue there;
-- avoid duplicate artifacts when an existing artifact is still the intended exact payload;
-- prefer the smallest mission and output that satisfies the task;
-- use bounded retention for temporary payloads;
-- inspect remote-state growth during mission-heavy work;
-- stop creating more temporary state when growth or ownership becomes surprising.
+Readable task-owned names help humans and agents distinguish temporary state. A short purpose plus a collision-resistant suffix is a useful default, for example:
 
-### After value ends
-
-- remove task-owned temporary branches/refs, workflow definitions, mission-only files, obsolete artifacts, and other temporary state when ownership and terminal state are clear;
-- retain runs and artifacts while they still have debugging, review, handoff, or recovery value;
-- never delete the only recovery payload before its result has been consumed or replaced by stronger durable repository state;
-- make cleanup idempotent;
-- if context was lost, reconstruct ownership and terminal state from durable GitHub evidence before deleting unfamiliar objects.
-
-Cleanup must be recovery-aware rather than aggressively eager. When the connected integration can establish ownership and terminal state but lacks a direct deletion/control operation, a bounded Actions cleanup mission is a valid fallback with minimum permissions and exact identity checks. That is remote control, not degraded remote execution.
-
-## 15. Task-owned naming and collision reduction
-
-Readable task-owned names help humans and agents distinguish temporary state. A short purpose plus a random suffix is preferable when work can overlap.
-
-When Python is available, a convenient default is:
-
-```bash
-python -c "import secrets; print(secrets.token_hex(4))"
+```text
+mission-deps-a7f3c2d1
+mission/patch-a7f3c2d1
+mission-export-a7f3c2d1.yml
 ```
 
-Four random bytes produce eight hex characters. The suffix is long enough to make accidental collisions unlikely for the intended scale while remaining readable in branch, artifact, and workflow names.
+When convenient, Python's `secrets.token_hex(4)` produces an eight-character suffix. Other reasonable random/UUID mechanisms are fine. Names reduce collisions; immutable identity still comes from SHAs and checksums.
 
-The suffix is only a collision-reduction aid. If Python or randomness is unavailable, another reasonable UUID/random mechanism or sufficiently unique task-derived suffix is acceptable. Mission execution must not block merely because the preferred suffix generator is unavailable.
+## 16. Discovery and AGENTS.md
 
-Names are never immutable identity; SHAs and checksums remain authoritative.
+The template uses `AGENTS.md` as a small, prominent discovery router into the embedded skill.
 
-## 16. Discovery and the role of AGENTS.md
+It should point to Luna while leaving room for project-specific instructions. It is not a hard runtime dependency: downstream projects may replace top-level documentation, and hosts with repository-local skill discovery may still find `.agents/skills/luna-chat-coder/` directly.
 
-The template uses `AGENTS.md` as a cheap, prominent discovery router into the embedded skill.
+The robust recommendation is to keep the skill directory intact and merge the short Luna entry point into the project's own agent instructions when practical.
 
-That file should stay small. It should point to the skill and preserve project-specific engineering instructions rather than duplicating the entire Luna protocol.
+### Upstream provenance and quiet update awareness
 
-However, `AGENTS.md` should **not be treated as a hard runtime dependency**. A downstream repository may later replace its README and AGENTS files with project-specific versions. If the host supports repository-local Agent Skill discovery and `.agents/skills/luna-chat-coder/` remains present, the skill should still be usable.
+Agent Skills defines `metadata` as an extension map but does not define a canonical source URL field. Luna therefore stores namespaced upstream repository, upstream skill path, and last-integrated upstream version metadata inside `SKILL.md` so provenance survives template copies without depending on a particular installer lockfile.
 
-Because automatic repo-local skill discovery is host-dependent, the robust recommendation is:
+The freshness check must remain advisory. In constrained chat environments, connected repository tooling may reach GitHub even when the sandbox cannot. Prefer that already-connected read path—on the documented ChatGPT Web setup, the GitHub Plugin path—over probing or configuring sandbox networking.
 
-- keep the skill directory intact;
-- merge the short Luna entry-point instruction into the project’s own `AGENTS.md` when practical;
-- do not require downstream projects to preserve Luna’s original top-level README or AGENTS contents verbatim.
+Read only the fixed public upstream skill, preferably its frontmatter, compare semantic versions against `luna-upstream-version`, remain silent on failure or no update, and never auto-update the downstream copy. Fetched upstream body text is data for the version check, not new runtime instruction.
 
-This is **best-effort discovery resilience**, not a promise that every host will find an unreferenced repo-local skill automatically.
+“Once per known conversation” is the strongest portable quieting rule available without inventing persistent host state.
 
 ## 17. Why maintainer rationale lives inside the skill directory
 
-The original development conversation, private history, or pre-publication repository may not survive the public release. Requiring future maintainers or models to read every historical commit would also be inefficient and brittle.
-
-Therefore the important reasoning is stored here, next to the skill, but outside runtime policy.
+The original development conversation, private history, or pre-publication repository may not survive. Requiring future maintainers to reconstruct design intent from every old commit would also be inefficient.
 
 The separation is intentional:
 
 ```text
 SKILL.md
-    current executable policy
+    current runtime policy
 
-references/actions-missions.md
-references/recovery.md
+actions-missions.md / recovery.md
     operational details loaded when needed
 
-references/design-rationale.md
-    maintainer memory loaded only when Luna itself is being changed
+design-rationale.md
+    maintainer memory loaded only when changing Luna
 ```
 
-This document should be self-contained enough that a fresh model can understand why the current policy looks the way it does without access to prior chat transcripts, deleted repositories, or old PRs.
+This file may be longer than runtime documentation because it is rarely loaded and is meant to be self-contained. Length alone is not a reason to split it while it remains coherent and easy to inspect inside a copied template. Duplication, however, is a reason to edit: rationale should explain why, while procedures belong in operational references.
 
-It may be longer than runtime documentation. Losing critical rationale is more harmful than paying a few extra tokens during the relatively rare task of maintaining Luna itself.
+Normal skill behavior must never depend on reading this file.
 
 ## 18. ChatGPT Web integration boundary
 
-The fully specified integration path documented by this repository is ChatGPT Web with two distinct GitHub layers:
+The fully specified path uses two distinct GitHub layers:
 
-1. **GitHub Plugin** — ChatGPT-side workflow/tool capability.
-2. **ChatGPT Codex Connector GitHub App** — GitHub-side installation and target-repository authorization.
+1. **GitHub Plugin** — ChatGPT-side repository/tool capability.
+2. **ChatGPT Codex Connector GitHub App** — GitHub-side installation and repository authorization.
 
-They are separate prerequisites for the validated path and should not be casually collapsed into one concept.
+They are separate prerequisites and should not be casually collapsed into one concept. Actions access is additionally relevant only when a mission is actually needed.
 
-This repository keeps the core skill host-neutral because Agent Skills can be portable, and other web AI products may also provide sandboxed execution. But format compatibility does not imply equal capabilities. A host must not invent repository writes, Actions control, logs, artifacts, or credentials it does not actually expose.
+The core skill remains host-neutral. Another host may use analogous capabilities only when they actually exist and are authorized.
 
-## 19. Why README is user-first
+## 19. README is the adoption surface
 
-Most users will not read a long conceptual explanation before trying the template.
+The README is the first contact for a template user. It should not make people reverse-engineer Luna's value from internal terminology, nor mirror the runtime protocol simply because every Markdown file is visible in the copied repository.
 
-The README therefore front-loads:
+Its job is to answer, quickly:
 
-- `Use this template`;
-- GitHub Plugin installation/connection;
-- ChatGPT Codex Connector installation/authorization;
-- the final normal interaction: give ChatGPT the repository URL and development task.
+1. What problem does this solve?
+2. Why is this approach different or useful?
+3. How do I start?
+4. What should I expect after setup?
 
-The design model is intentionally later and optional. A user should not need to understand the probe metaphor, recovery order, or transport strategy to benefit from Luna.
+The distinctive value is not “Luna has a sophisticated transport taxonomy.” It is that ChatGPT already has a useful built-in code-execution sandbox, but limited network access can make real repository work stall. Luna teaches the chat to keep that sandbox as the development workspace and use GitHub only for the missing network/transport pieces—without requiring the user to expose a development machine or operate a tunnel.
+
+README prose should therefore lead with that outcome, use plain language, and expose internal terms only when the user must act on them. Implementation details can be linked because every template copy already contains the skill and references in inspectable form.
+
+Do not duplicate defensive caveats or operational checklists merely to demonstrate completeness. A concise README can be technically accurate precisely because the detailed policy lives elsewhere.
+
+English and Korean are one product surface. Keep structure, emphasis, and meaning aligned; neither language should become a secondary or more awkward version of the other.
 
 ## 20. Terminology decisions
 
-Canonical runtime terminology is deliberately narrow:
+Canonical runtime terminology stays deliberately narrow:
 
 - `sandbox work container`
 - `durable repository state`
 - `Actions mission`
 - `degraded remote mode`
 
-Avoid `local container` because users often interpret “local” as their own computer.
+Avoid `local container` because users may interpret “local” as their own computer. Avoid `bridge` because it implies a persistent connection rather than bounded remote work.
 
-Avoid `bridge` because it implies a persistent communication path rather than bounded remote execution.
-
-In human-facing Korean documentation, transliterating common engineering terms such as 런타임, 샌드박스, 리포지토리, 프로젝트 is often clearer than overly literal translation. Workflow-specific terms such as GitHub Actions, Actions mission, edit/build/test, diff, fallback, commit, PR, and artifact may remain in English when translation would become longer or ambiguous.
+Human-facing README prose should use these terms sparingly. Runtime documents can be precise without making the public introduction sound like a protocol specification.
 
 ## 21. Stable decisions worth preserving
 
-Unless new evidence provides a strong reason to change them, these are intentionally stable:
+Unless new evidence provides a strong reason to change them:
 
 - ordinary chat remains the development surface;
-- sandbox-first execution;
-- GitHub exact state outranks conversation reconstruction;
-- user host access is not a dependency;
-- project requirements define the engineering method;
+- the sandbox remains the primary engineering workspace;
+- GitHub exact state outranks conversational reconstruction;
+- the user's host computer is not a dependency;
+- project requirements define the engineering method and project-owned policy;
 - Actions is bounded fallback/transport/execution rather than the default workstation;
-- exact byte-preserving transport is a first-class, bidirectional option rather than merely a publication fallback;
-- exact state should avoid unnecessary model-mediated reserialization when that path would add meaningful fidelity or partial-update risk and a practical byte-preserving alternative exists;
-- every mission result must be checked against its expected outputs, and remote failure must be diagnosed from evidence before blind retry or source modification;
+- Luna is responsible for the safety and cleanup of Luna-created remote state, not for imposing repository-wide security policy;
+- exact byte-preserving transport is first-class, and end-to-end verified textual patch transport is an acceptable fallback when no practical byte-preserving upload exists;
+- mission outputs are verified and failures are diagnosed before blind retry;
 - concurrent actors are assumed;
-- temporary remote state is task-owned, bounded, recovery-aware, and growth-controlled, with bounded cleanup missions available when direct control is insufficient;
+- temporary remote state is task-owned, bounded, and recovery-aware;
 - completion claims are evidence-bounded;
-- core skill remains host-neutral while ChatGPT Web is the fully specified integration path;
-- runtime policy and maintainer rationale remain separate;
-- top-level discovery files may evolve downstream, so the skill directory should carry its own durable rationale.
+- upstream update awareness is advisory, quiet, and never auto-updates a downstream copy;
+- runtime policy, operational procedure, maintainer rationale, and user-facing README remain separate layers;
+- proposed Luna changes remain reversible until the final candidate is demonstrably better than the prior baseline.
 
 ## 22. Rejected or corrected approaches
 
-### A rigid publication hierarchy
-
-Rejected: always prefer file writes, then native Git objects, then patch mission only as a final fallback.
-
-Reason: large multi-file changes, binary/mode/history semantics, transport limits, and persistent API instability can make one exact patch/bundle objectively safer or cheaper earlier.
-
-### A rigid gap taxonomy as the core decision model
-
-Rejected.
-
-Reason: acquisition, transport, control, and execution needs can overlap in one task, and host capabilities will evolve. Requiring every situation to fit a fixed category can create new false boundaries without improving the durable decision. The more stable rule is that the normal engineering loop stays in a usable sandbox; bounded missions may supply, transport, or control remote state as needed; remote edit/build/test execution is reserved for the case where the sandbox itself cannot faithfully sustain it.
-
-### Model-mediated per-file reconstruction as the default exact transport
-
-Rejected when exact state already exists, model-mediated reconstruction adds meaningful fidelity or partial-update risk, and a practical byte-preserving path exists.
-
-Reason: if the source tree or verified payload already exists as exact bytes, routing it through model-authored complete-file/blob content adds serialization and partial-update risk without adding useful reasoning. This is a preference, not a permanent ban: small intentional text edits and constrained hosts may still make direct content operations the best path.
-
-### Embedding the payload in workflow text and calling it exact transport
-
-Rejected for substantial exact payloads when a practical byte-preserving channel exists.
-
-Reason: model-authored YAML, heredocs, command literals, or large textual workflow inputs still pass the payload through model serialization. Actions can execute that text, but it does not recover the fidelity benefit of carrying an already-existing exact patch/archive/bundle/artifact/file reference.
-
 ### Actions as the normal coding environment
 
-Rejected.
+Rejected because it adds remote latency, metered execution, workflow/artifact management, and weaker interactive feedback without need when the sandbox is usable.
 
-Reason: unnecessary remote latency, metered execution, artifact/workflow management, weaker interactive feedback, and remote-state growth.
+### A rigid publication hierarchy or gap taxonomy
 
-### Bridge terminology
+Rejected because transport, supply, control, and execution needs can overlap and host capabilities evolve. The stable boundary is whether the sandbox can remain the engineering loop and which exact path is simplest for the observed payload.
 
-Rejected in canonical policy.
+### Reconstructing already-existing exact state through model prose
 
-Reason: encouraged an inaccurate persistent-connection mental model and too many overlapping sub-concepts.
+Rejected when a practical exact object, patch, bundle, archive, artifact, or file reference already exists. Re-serialization adds fidelity and partial-update risk without adding useful reasoning.
 
-### Reconstructing exact changes from prose
+### Embedding a substantial payload inside workflow code and calling it byte-preserving
 
-Rejected whenever exact source bytes, patch, bundle, commit, or artifact are available.
+Rejected. Workflow YAML, heredocs, and command strings are still model-authored text. A payload should remain data and be verified independently.
 
-Reason: silently loses fidelity and makes recovery ambiguous.
+### Rejecting a verified textual patch only because the channel is not inherently byte-preserving
 
-### Blind Actions retries
+Rejected after the `0.1.3` publication experience. Channel fidelity and end-to-end exactness are different properties. If checksum and result-tree verification detect drift, a textual patch can be an exact fallback even though the channel itself is not trusted as byte-preserving.
 
-Rejected.
+### Blind retries and source edits after remote failure
 
-Reason: hides root causes, wastes compute, can amplify bad source modifications, and creates redundant runs/artifacts.
+Rejected. Inspect evidence first; otherwise retries waste compute and can turn infrastructure problems into unnecessary source changes.
 
 ### Aggressive immediate cleanup
 
-Rejected.
+Rejected because a failed run or artifact may still be the only useful diagnosis or recovery payload. Cleanup must understand ownership and terminal state.
 
-Reason: a failed run or artifact may be the only useful diagnosis or recovery payload if the chat or sandbox disappears.
+### Mandatory update checks or automatic self-update
 
-### Keeping all rationale inside SKILL.md
+Rejected because they add latency, fail on restricted hosts, disturb the quiet normal path, and can overwrite downstream customizations. The update check is best-effort and advisory only.
 
-Rejected.
+### Treating downstream content drift as proof of staleness
 
-Reason: runtime policy should stay concise and unambiguous. Historical reasoning belongs in maintainer-only progressive-disclosure documentation.
+Rejected because template users may intentionally customize Luna. Track the last deliberately integrated upstream version instead.
 
-### Depending on Git history as maintainer memory
+### Expanding Luna's internal safety rules into project-wide policy
 
-Rejected.
+Rejected. Luna may need minimum permissions, safe handling of its own temporary credentials, or protection against untrusted inputs in workflows it creates. That does not make Luna the authority over every project file, workflow, or secret-handling convention. Project-owned policy belongs to the project.
 
-Reason: public release may reset history, repositories can migrate, and asking a fresh model to inspect every commit is inefficient and non-portable.
+### Preserving a change because it has already been authored
 
-## 23. Questions future maintainers should ask before adding rules
+Rejected. Implementation effort is not evidence that the result is better. Simplify, partially revert, or withdraw a change that is neutral, regressive, or needlessly complex.
+
+### Keeping all rationale in runtime policy or depending on Git history for rationale
+
+Both are rejected. Runtime policy should stay concise, while maintainer memory should survive repository copies and history changes without forcing every normal task to load it.
+
+## 23. Questions future maintainers should ask
 
 Before expanding Luna, ask:
 
-1. Does this rule prevent a repeatable failure in constrained chat-based repository development?
-2. Is it a Luna concern, or should the project’s own engineering instructions decide it?
-3. Can the rule be an operational reference rather than always-loaded runtime policy?
+1. Does this prevent a repeatable failure in constrained chat-based repository development?
+2. Is it actually a Luna concern, or does it belong to the surrounding project?
+3. Does it need to be runtime policy, or can it live in an operational reference or rationale?
 4. Does it preserve exact state and observable evidence?
-5. Does it remain safe with concurrent chats, agents, CI, and humans?
-6. What happens if the chat and sandbox disappear immediately after this step?
+5. Is it safe with concurrent chats, agents, CI, and humans?
+6. What happens if chat and sandbox state disappear immediately afterward?
 7. Can it create unbounded remote state, quota, storage, or cost?
 8. Does it assume a host capability that may not exist?
-9. Will a normal user need to understand this concept, or can Luna keep it invisible?
-10. Does this rule encode today's connector/tool surface too literally, or will its invariant still make sense as hosts and models improve?
-11. Is there a simpler rule that preserves the same reliability?
+9. Can the normal user remain unaware of this concept?
+10. Does it encode today's tool surface too literally?
+11. Is there a simpler rule with the same reliability?
+12. Can a first-time template user understand the benefit and setup without learning Luna's internal vocabulary?
+13. Is the result demonstrably better than the prior baseline, or are we protecting sunk effort?
 
-## 24. Maintenance discipline
+## 24. Maintenance changes are hypotheses, not commitments
+
+Treat every proposed Luna change as a hypothesis about how to improve the system, not as a commitment created by editing files.
+
+Discussion and implementation are one iterative design loop: understand the current behavior, make the smallest promising change, verify what actually improved or regressed, and keep refining only while evidence supports the direction.
+
+Before accepting a change, compare the final candidate with the prior baseline. Consider the intended failure mode, runtime complexity, normal-path user noise, portability, security boundaries, exactness/recovery behavior, and the checks that actually ran. Solving one edge case while making the healthy path more fragile or ceremonial is not progress.
+
+If the candidate is worse, ambiguous, or needlessly complex, simplify it, revert the affected part, or withdraw it. Reversibility is a maintenance feature; the goal is the best resulting policy, not preservation of the current draft.
+
+For user-facing changes, English/Korean parity is part of acceptance rather than a later cleanup step.
+
+## 25. Maintenance discipline
 
 When Luna itself changes:
 
 - update `SKILL.md` only for current runtime policy;
 - update operational references when procedure changes;
-- update this document when a stable rationale, rejected alternative, known failure mode, or important boundary changes;
-- keep README English/Korean structure aligned when user-facing behavior changes;
+- update this rationale when a stable reason, rejected alternative, known failure mode, or important boundary changes;
+- keep English and Korean README structure and meaning aligned;
+- on canonical releases, keep `metadata.version`, `metadata.luna-upstream-version`, and both README version labels aligned; downstream customized copies change `luna-upstream-version` only when that upstream version is deliberately integrated;
 - do not require historical Git or old conversations to understand the current design;
 - prefer deleting obsolete concepts over carrying synonyms indefinitely;
-- keep versioning deliberate; pre-publication work may remain at `0.1.0` until the first public release is intentionally cut.
+- keep versioning deliberate.
 
-The aim is a small runtime protocol with enough durable design memory that future maintainers can simplify or extend it without rediscovering the same failures from scratch.
+The aim is a small runtime protocol, useful operational references, and enough maintainer memory to evolve Luna without rediscovering the same failures.
